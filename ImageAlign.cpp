@@ -6,7 +6,7 @@
 #include <vector>
 #include <cmath>
 
-#include "Eigen/Dense"
+#include "eigen/Eigen/Dense"
 
 #define cimg_display 0
 #include "CImg.h"
