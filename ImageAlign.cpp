@@ -29,7 +29,7 @@ MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {
         
         float intensite = img_to_grayscale(x,y);
 
-        if (intensite > 0.4) { 
+        if (intensite > 40) { 
             
             vector<int> coordonate;
             coordonate = {x,y};
@@ -37,13 +37,13 @@ MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {
             
         }
      }
+
      MatrixXd m(2,vec.size());
 
      for (int i = 0; i < vec.size(); i++)  {
-         m(0,i) = vec[0][i];
-         m(1,i) = vec[1][i];
+         m(0,i) = vec[i][0];
+         m(1,i) = vec[i][1];
      }
-
 
     return m;
 }
@@ -60,8 +60,17 @@ int main(int argc, const char * argv[]) {
     VectorXd image_1_x = image_filtered_1.row(0);
     VectorXd image_1_y = image_filtered_1.row(1);
 
-    cout << image_1_x << endl;
-    cout << image_1_y << endl;
+
+    float mean_1_x = image_1_x.mean();
+    float mean_1_y = image_1_y.mean();
+    
+
+
+
+   
+    
+
+
 
     // eigen sommation integree fct_mean
 
@@ -71,8 +80,5 @@ int main(int argc, const char * argv[]) {
     
     return 0;
 }
-
-//~!@#$%^&*()_+:"|"?><+_=-=-`]''\'/<
-
 
 //~!@#$%^&*()_+:"|"?><+_=-=-`]''\'/<
