@@ -39,6 +39,12 @@ MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {
      }
      MatrixXd m(2,vec.size());
 
+     for (int i = 0; i < vec.size(); i++)  {
+         m(0,i) = vec[0][i];
+         m(1,i) = vec[1][i];
+     }
+
+
     return m;
 }
 
@@ -51,7 +57,11 @@ int main(int argc, const char * argv[]) {
     MatrixXd image_filtered_1 = ImgToMatrixTresholder(image1);
     MatrixXd image_filtered_2 = ImgToMatrixTresholder(image2);
 
-    VectorXd image;
+    VectorXd image_1_x = image_filtered_1.row(0);
+    VectorXd image_1_y = image_filtered_1.row(1);
+
+    cout << image_1_x << endl;
+    cout << image_1_y << endl;
 
     // eigen sommation integree fct_mean
 
@@ -61,5 +71,8 @@ int main(int argc, const char * argv[]) {
     
     return 0;
 }
+
+//~!@#$%^&*()_+:"|"?><+_=-=-`]''\'/<
+
 
 //~!@#$%^&*()_+:"|"?><+_=-=-`]''\'/<
