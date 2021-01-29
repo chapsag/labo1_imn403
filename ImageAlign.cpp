@@ -57,22 +57,33 @@ int main(int argc, const char * argv[]) {
     MatrixXd image_filtered_1 = ImgToMatrixTresholder(image1);
     MatrixXd image_filtered_2 = ImgToMatrixTresholder(image2);
 
-    VectorXd image_1_x = image_filtered_1.row(0);
-    VectorXd image_1_y = image_filtered_1.row(1);
+    VectorXd A = image_filtered_1.rowwise().mean();
+    VectorXd ONES(image_filtered_1.size()); ONES.setOnes();    
 
+    // N : nombre d'observations
+    // F : 2 * N la matrice d'observations
+    // A : 2 * 1 la matrice de moyenne
+    // Q : la matrice de covariance.
+    MatrixXd Q = (image_filtered_1 - A * ONES.transpose()) * (image_filtered_1 - A * ONES.transpose()).transpose() / (image_filtered_1.size() - 1);
 
-    float mean_1_x = image_1_x.mean();
-    float mean_1_y = image_1_y.mean();
-    
+    // Décomposition en valeur propre
+    // Vp dans ES
+    // Attention objet complexe dans notre ES
+    EigenSolver<MatrixXd> ES(Q);
 
+    int maxIndex;
+    ES.eigenvalues().real().maxCoeff(&maxIndex);
 
+    VectorXd eigen1((ES.eigenvectors().col(maxIndex)).real());
+    VectorXd align1; align1 << 0,-1; align1.normalize();
 
-   
-    
+    double prodscal(eigen1.dot(align1));
+    double angle(acos(prodscal)*(180.0/3.141592650));
 
+    cout << "Rotation angle = " << angle << endl;
 
+    image1.rotate(angle);
 
-    // eigen sommation integree fct_mean
 
     // Mettre l'image 1 dans la même orientation que l'image 2 à l'aide de l'ACP
 
@@ -80,5 +91,3 @@ int main(int argc, const char * argv[]) {
     
     return 0;
 }
-
-//~!@#$%^&*()_+:"|"?><+_=-=-`]''\'/<
