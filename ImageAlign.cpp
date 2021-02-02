@@ -50,7 +50,12 @@ MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {
 
 int main(int argc, const char * argv[]) {
     
+    vector<CIMG<unsigned chard>> faces;
 
+    cv::glob("./lfw")
+
+
+    
     CImg<unsigned char> image1("brain1.ppm");
     CImg<unsigned char> image2("brain2.ppm");
 
@@ -78,14 +83,7 @@ int main(int argc, const char * argv[]) {
     VectorXd align1; align1 << 0,-1; align1.normalize();
 
     double prodscal(eigen1.dot(align1));
-    double angle(acos(prodscal)*(180.0/3.141592650));
 
-    cout << "Rotation angle = " << angle << endl;
-
-    image1.rotate(angle);
-
-
-    // Mettre l'image 1 dans la même orientation que l'image 2 à l'aide de l'ACP
 
     image1.save("output.ppm");
     
