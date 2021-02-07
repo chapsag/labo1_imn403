@@ -4,7 +4,6 @@
 
 
 #include <iostream>
-#include <filesystem>
 #include <vector>
 #include <cmath>
 
@@ -16,8 +15,8 @@
 using namespace Eigen;
 using namespace cimg_library;
 using namespace std;
-using recursive_directory_iterator = std::filesystem::recursive_directory_iterator;
 
+s
 MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {   
 
 
@@ -55,9 +54,6 @@ int main(int argc, const char * argv[]) {
     
     vector<CImg<unsigned char>> faces;
 
-   for (const auto& dirEntry : recursive_directory_iterator("./lfw"))  {
-       std::cout << dirEntry << std::endl;
-   }
      
 
 
