@@ -1,6 +1,7 @@
 //
 //  ImageAlign.cpp
-//
+//  Avoir paramètres inclus
+//  Attention Crop
 
 
 #include <iostream>
@@ -17,9 +18,9 @@ using namespace Eigen;
 using namespace cimg_library;
 using namespace std;
 
-
 int main(int argc, const char * argv[]) {
 
+    MatrixXd M(200, 200);
     vector<int> xCoord, yCoord;
     
     for (int i = 1; i < 101; i++) {
@@ -44,10 +45,12 @@ int main(int argc, const char * argv[]) {
             
             xCoord.push_back(x);
             yCoord.push_back(y);
+            M((2*i)-1,x) = x;
+            M((2*i)-2,y) = y;
+
+            std::cout << x << std::endl;
         }
     }
-
-
 
     // Start PCA
     int N = xCoord.size();
