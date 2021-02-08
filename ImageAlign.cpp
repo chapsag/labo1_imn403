@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <vector>
+#include <tuple>
 #include <cmath>
 #include <string>
 #include "eigen/Eigen/Dense"
@@ -46,11 +47,13 @@ int main(int argc, const char * argv[]) {
         }
     }
 
+
+
+    // Start PCA
     int N = xCoord.size();
 
     MatrixXd F(2,N);
 
-    
 
     for(int i = 0; i < N; i++) {
         F(0,i) = xCoord[i];
