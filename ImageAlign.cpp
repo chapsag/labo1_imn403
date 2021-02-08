@@ -6,7 +6,7 @@
 #include <iostream>
 #include <vector>
 #include <cmath>
-
+#include <string>
 #include "eigen/Eigen/Dense"
 
 #define cimg_display 0
@@ -16,78 +16,67 @@ using namespace Eigen;
 using namespace cimg_library;
 using namespace std;
 
-s
-MatrixXd ImgToMatrixTresholder(CImg<unsigned char> image) {   
-
-
-    int x = 0;
-    int y = 0;
-
-    vector<vector<int>> vec;
-    CImg<unsigned char> img_to_grayscale = image.RGBtoYCbCr().channel(0);
-    
-    cimg_forXY(img_to_grayscale,x,y) { 
-
-        
-        float intensite = img_to_grayscale(x,y);
-
-        if (intensite > 40) { 
-            
-            vector<int> coordonate;
-            coordonate = {x,y};
-            vec.push_back(coordonate);
-            
-        }
-     }
-
-     MatrixXd m(2,vec.size());
-
-     for (int i = 0; i < vec.size(); i++)  {
-         m(0,i) = vec[i][0];
-         m(1,i) = vec[i][1];
-     }
-
-    return m;
-}
 
 int main(int argc, const char * argv[]) {
+
+    vector<int> xCoord, yCoord;
     
-    vector<CImg<unsigned char>> faces;
+    for (int i = 1; i < 101; i++) {
+        
+        string input ("./lfw/");
+        string output ("output");
 
-     
+        input += std::to_string(i);
+        input += ".jpg";
 
+        output += std::to_string(i);
+        output += ".ppm";
+
+        CImg<unsigned char> face(input.c_str());
+        
+        face.crop(0,0,200,200);
+        face = face.get_RGBtoYCbCr().get_channel(0);
+        face.save(output.c_str());
+
+        
+        cimg_forXY(face, x, y) {
+            
+            xCoord.push_back(x);
+            yCoord.push_back(y);
+        }
+    }
+
+    int N = xCoord.size();
+
+    MatrixXd F(2,N);
 
     
-    CImg<unsigned char> image1("brain1.ppm");
-    CImg<unsigned char> image2("brain2.ppm");
 
-    MatrixXd image_filtered_1 = ImgToMatrixTresholder(image1);
-    MatrixXd image_filtered_2 = ImgToMatrixTresholder(image2);
+    for(int i = 0; i < N; i++) {
+        F(0,i) = xCoord[i];
+        F(1,i) = yCoord[i];
+    }
 
-    VectorXd A = image_filtered_1.rowwise().mean();
-    VectorXd ONES(image_filtered_1.size()); ONES.setOnes();    
+    Vector2d A = F.rowwise().mean();
+    VectorXd ONES(N); ONES.setOnes();
 
     // N : nombre d'observations
     // F : 2 * N la matrice d'observations
     // A : 2 * 1 la matrice de moyenne
     // Q : la matrice de covariance.
-    MatrixXd Q = (image_filtered_1 - A * ONES.transpose()) * (image_filtered_1 - A * ONES.transpose()).transpose() / (image_filtered_1.size() - 1);
+    MatrixXd Q = (F - A * ONES.transpose()) * (F - A * ONES.transpose()).transpose() / (N - 1);
 
-    // Décomposition en valeur propre
-    // Vp dans ES
-    // Attention objet complexe dans notre ES
+    // Calcule valeur propre, vecteur propre
     EigenSolver<MatrixXd> ES(Q);
 
     int maxIndex;
+
+    // Conserve les reels, maxcoeff donne position de la plus grande valeur propre
     ES.eigenvalues().real().maxCoeff(&maxIndex);
 
+
+    // stocke
     VectorXd eigen1((ES.eigenvectors().col(maxIndex)).real());
-    VectorXd align1; align1 << 0,-1; align1.normalize();
 
-    double prodscal(eigen1.dot(align1));
-
-
-    image1.save("output.ppm");
-    
     return 0;
-}
+    }
