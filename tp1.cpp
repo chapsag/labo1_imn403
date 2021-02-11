@@ -24,6 +24,7 @@ bool file_exists(const string name) {
 	return f.good();
 }
 
+//Convert eigen VectorXd to CImg and saves it.
 CImg<unsigned char> VectorXd_to_CImg(VectorXd v,int image_width, int image_height, double min, double max)
 {
 	CImg<unsigned char> image(image_width, image_height, 1, 1, 0);
@@ -41,6 +42,7 @@ CImg<unsigned char> VectorXd_to_CImg(VectorXd v,int image_width, int image_heigh
 	return image;
 }
 
+//Read image directory infos.
 void read_txt_file(string data_base, string &data_base_directory, int &N, int &image_width, int &image_height)
 {
 	string line;
@@ -68,6 +70,7 @@ void read_txt_file(string data_base, string &data_base_directory, int &N, int &i
 	}
 }
 
+//Convert CImg to a eigen MatrixXd.
 MatrixXd images_to_MatrixXd(int image_width, int image_height, int N, string directory)
 {
 	MatrixXd F(image_width*image_height, N);
@@ -95,6 +98,7 @@ MatrixXd images_to_MatrixXd(int image_width, int image_height, int N, string dir
 	return F;
 }
 
+//Build eigen faces from N images from a image database.
 void build_eigen_faces(string data_base, string eigen_faces_directory, vector<VectorXd> &Eigen_faces)
 {
 	string data_base_directory;
@@ -134,6 +138,7 @@ void build_eigen_faces(string data_base, string eigen_faces_directory, vector<Ve
 	return;
 }
 
+//Get eigen faces from folder if already computed.
 void get_eigen_faces(vector<VectorXd> &Eigen_faces, string eigen_faces_directory, int n_eigen_faces)
 {
 	if (file_exists(eigen_faces_directory + "/mean.pgm"))
@@ -168,6 +173,7 @@ void get_eigen_faces(vector<VectorXd> &Eigen_faces, string eigen_faces_directory
 	}
 }
 
+//Compute images eigen faces weigth.
 MatrixXd image_weight(string images, vector<VectorXd> Eigen_faces, int n_eigen_faces)
 {
 	string directory;
@@ -183,15 +189,10 @@ MatrixXd image_weight(string images, vector<VectorXd> Eigen_faces, int n_eigen_f
 	for (int i = 0; i < I.cols(); i++)
 	{
 		image_norm = (I.col(i) - Eigen_faces[0]);
-		for (int p = 0; p < image_norm.rows(); p++)
-		{
-			if (image_norm(p) < 0)
-				image_norm(p) = 0;
-		}
-
+		image_norm.normalize();
 		for (int m = 1; m < n_eigen_faces + 1; m++)
 		{
-			w = (Eigen_faces[m].transpose() * image_norm);
+			w = Eigen_faces[m].transpose() * image_norm;
 			weight(m - 1, i) = w;
 		}
 	}
@@ -199,42 +200,103 @@ MatrixXd image_weight(string images, vector<VectorXd> Eigen_faces, int n_eigen_f
 	return weight;
 }
 
+//restore image from their weight.
+void restore_image(vector<VectorXd> Eigen_faces, MatrixXd image_weight, string directory, int n_eigen_faces)
+{
+	VectorXd image(image_weight.rows());
 
+	for (int i = 0; i < image_weight.cols(); i++)
+	{
+		image = Eigen_faces[0];
+		for (int k = 0; k < n_eigen_faces; k++)
+		{
+			image += image_weight(k, i)*Eigen_faces[k+1];
+		}
+
+		int size = sqrt(image.rows());
+		double min = image.minCoeff();
+		double max = image.maxCoeff();
+		CImg<unsigned char> eigen_face = VectorXd_to_CImg(image, size, size, min, max);
+		eigen_face.save((directory + "restored_" + to_string(i) + ".pgm").c_str());
+	}
+	
+}
+
+//Finds k min from vector.
 vector<int> k_min(vector<double> distances, int k)
 {
-	//TODO
 	vector<int> index;
+	vector<pair<double, int>> v_pair;
+
+	for (int i = 0; i < distances.size(); i++)
+	{
+		pair<double, int> pair;
+		pair.first = distances[i];
+		pair.second = i;
+		v_pair.push_back(pair);
+	}
+	sort(v_pair.begin(), v_pair.end());
+
+	for (int i = 0; i < k; i++)
+	{
+		index.push_back(v_pair[i].second);
+	}
+
 	return index;
 }
 
-void find_similar_image(int k, string similar_directory, string data_base, vector<VectorXd> Eigen_faces, int n_eigen_faces)
+//Find k similar image from the database.
+void find_similar_image(int k, string similar_directory, string data_base, vector<VectorXd> Eigen_faces, int n_eigen_faces, bool restore, string restore_dir)
 {
 	MatrixXd database_weight = image_weight(data_base, Eigen_faces, n_eigen_faces);
 	MatrixXd compared_image_weight = image_weight(similar_directory, Eigen_faces, n_eigen_faces);
+
+	if (restore)
+	{
+		restore_image(Eigen_faces, database_weight, restore_dir, n_eigen_faces);
+	}
+
 	VectorXd dif(compared_image_weight.rows());
 	vector<double> distances;
 
-	for (int d = 0; d < database_weight.cols(); d++)
+	string dir;
+	ifstream data(similar_directory);
+	if (data.is_open())
 	{
-		double distance = 0.0;
-		dif = compared_image_weight.col(0) - database_weight.col(d);
-		for (int j = 0; j < dif.rows(); j++)
-		{
-			distance += dif(j)*dif(j);
-		}
-		distance = sqrt(distance);
-		distances.push_back(distance);
+		getline(data, dir);
+		data.close();
+	}
+	else
+	{
+		cout << "Unable to open file";
+		return;
 	}
 
-	vector<int> index = k_min(distances, k);
-	
-	ofstream myfile;
-	myfile.open(similar_directory + "similar_image_list.txt");
-	myfile << "Les "+to_string(k)+" images les plus similaire, de la plus similaise a la moins similaire, sont: \n";
-	for (int i = 0; i < index.size(); i++)
+	for (int i = 0; i < compared_image_weight.cols(); i++)
 	{
-		myfile << to_string(index[i]) + ".pgm \n";
+		for (int d = 0; d < database_weight.cols(); d++)
+		{
+			double distance = 0.0;
+			dif = compared_image_weight.col(i) - database_weight.col(d);
+			for (int j = 0; j < dif.rows(); j++)
+			{
+				distance += dif(j)*dif(j);
+			}
+			distance = sqrt(distance);
+			distances.push_back(distance);
+		}
+
+		vector<int> index = k_min(distances, k);
+
+		ofstream myfile;
+		myfile.open(dir + "similar_to_" + to_string(i+1) + ".pgm_list.txt");
+		myfile << "Les " + to_string(k) + " images les plus similaire, de la plus similaise a la moins similaire, sont: \n";
+		for (int i = 0; i < index.size(); i++)
+		{
+			myfile << to_string(index[i]) + ".pgm \n";
+		}
 	}
+	
 }
 
 int main(int argc, const char * argv[]) {
@@ -250,7 +312,9 @@ int main(int argc, const char * argv[]) {
 	int n_eigen_faces = atoi(argv[5]);
 	string eigen_faces_directory(argv[6]);
 	string similar_directory(argv[7]);
-	int k = atoi(argv[8]);;
+	int k = atoi(argv[8]);
+	int restore = atoi(argv[9]);
+	string restore_directory(argv[10]);
 
 	if (build)
 		build_eigen_faces(data_base, eigen_faces_directory, Eigen_faces);
@@ -262,7 +326,7 @@ int main(int argc, const char * argv[]) {
 		return 0;
 	}
 	if (similar)
-		find_similar_image(k, similar_directory, data_base, Eigen_faces, n_eigen_faces);
+		find_similar_image(k, similar_directory, data_base, Eigen_faces, n_eigen_faces, restore, restore_directory);
 	
 	return 0;
 }

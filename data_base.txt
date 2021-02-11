@@ -1,4 +1,4 @@
-./images/lfw_pgm/
-100
+./images/data_base/
+200
 250
 250
