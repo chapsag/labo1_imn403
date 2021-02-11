@@ -9,6 +9,7 @@ Pierre-Emmanuel Goffi	gofp2701
 #include <tuple>
 #include <cmath>
 #include <string>
+#include <queue>
 #include "eigen/Eigen/Dense"
 
 #include "CImg.h"
@@ -23,24 +24,27 @@ bool file_exists(const string name) {
 	return f.good();
 }
 
-CImg<unsigned char> VectorXd_to_CImg(VectorXd m,int image_width, int image_height)
+CImg<unsigned char> VectorXd_to_CImg(VectorXd v,int image_width, int image_height, double min, double max)
 {
 	CImg<unsigned char> image(image_width, image_height, 1, 1, 0);
+	if ((max - min) == 0)
+		max = 255.0;
 	for (int i = 0; i < image_height; i++)
 	{
 		for (int j = 0; j < image_width; j++)
 		{
-			image(j, i) = m((i*image_width) + j, 0);
+			double pix = v((i*image_width) + j, 0);
+			int rescale = int(((pix - min) / (max - min))*255.0);
+			image(j, i) = rescale;
 		}
 	}
 	return image;
 }
 
-void build_reduced_space(string data_base, string eigen_faces_directory, vector<CImg<unsigned char>> &Eigen_faces)
+void read_txt_file(string data_base, string &data_base_directory, int &N, int &image_width, int &image_height)
 {
-	string line, data_base_directory;
-	int N = 0;
-	int image_width, image_height;
+	string line;
+	
 	ifstream data(data_base);
 	if (data.is_open())
 	{
@@ -62,13 +66,15 @@ void build_reduced_space(string data_base, string eigen_faces_directory, vector<
 		cout << "Unable to open file";
 		return;
 	}
+}
 
+MatrixXd images_to_MatrixXd(int image_width, int image_height, int N, string directory)
+{
 	MatrixXd F(image_width*image_height, N);
 
-	for (int i = 0; i < N; i++) {
-
-
-		string input = data_base_directory + to_string(i) + ".pgm";
+	for (int i = 0; i < N; i++)
+	{
+		string input = directory + to_string(i) + ".pgm";
 
 		if (file_exists(input))
 		{
@@ -83,80 +89,180 @@ void build_reduced_space(string data_base, string eigen_faces_directory, vector<
 		else
 		{
 			cout << "Unable to open " + input;
-			return;
+			return F;
 		}
 	}
+	return F;
+}
+
+void build_eigen_faces(string data_base, string eigen_faces_directory, vector<VectorXd> &Eigen_faces)
+{
+	string data_base_directory;
+	int N = 0;
+	int image_width, image_height;
+	read_txt_file(data_base, data_base_directory, N, image_width, image_height);
+
+	MatrixXd F = images_to_MatrixXd(image_width, image_height, N, data_base_directory);
 
 	VectorXd ONES(N);
 	ONES.setOnes();
 
 	VectorXd m = F.rowwise().mean();
 
-	CImg<unsigned char> mean = VectorXd_to_CImg(m, image_width, image_height);
-	Eigen_faces.push_back(mean);
+	Eigen_faces.push_back(m);
+	CImg<unsigned char> mean = VectorXd_to_CImg(m, image_width, image_height, 0.0, 255.0);
 	mean.save((eigen_faces_directory + "/mean.pgm").c_str());
 
-	// N : nombre d'observations
-	// F : k^2 x N la matrice d'observations
-	// m : 1 x N la matrice de moyenne
 	// Q : la matrice de covariance.
-	MatrixXd Q = ((F - (m * ONES.transpose())) * (F - (m * ONES.transpose())).transpose()) / (N - 1);
+	MatrixXd A = F - (m * ONES.transpose());
+	MatrixXd Q = A.transpose() * A;
 
-	// Calcule valeur propre, vecteur propre
 	EigenSolver<MatrixXd> ES(Q);
 
-	// Conserve les reels, maxcoeff donne position de la plus grande valeur propre
-	int maxIndex;
-	ES.eigenvalues().real().maxCoeff(&maxIndex);
+	MatrixXd eigen_vectors = A * ES.eigenvectors().real();
 
-	// stocke
-	VectorXd eigen1((ES.eigenvectors().col(maxIndex)).real());
+	for (int n = 0; n < N; n++)
+	{
+		VectorXd eigen_vector = eigen_vectors.col(n);
+		Eigen_faces.push_back(eigen_vector);
 
-	VectorXd lambda = ES.eigenvalues().real();
-
-	MatrixXd v = ES.eigenvectors().real();
-	
+		double min = eigen_vector.minCoeff();
+		double max = eigen_vector.maxCoeff();
+		CImg<unsigned char> eigen_face = VectorXd_to_CImg(eigen_vector, image_width, image_height, min, max);
+		eigen_face.save((eigen_faces_directory + "/eigen_face"+ to_string(n) +".pgm").c_str());
+	}
 	return;
 }
 
-void get_eigen_faces()
+void get_eigen_faces(vector<VectorXd> &Eigen_faces, string eigen_faces_directory, int n_eigen_faces)
 {
-	//TODO
+	if (file_exists(eigen_faces_directory + "/mean.pgm"))
+	{
+		CImg<unsigned char> mean((eigen_faces_directory + "/mean.pgm").c_str());
+		VectorXd m(mean.width()*mean.height());
+		cimg_forXY(mean, x, y)
+		{
+			m((y*mean.width()) + x) = mean(x, y);
+		}
+		Eigen_faces.push_back(m);
+	}
+	for (int n = 0; n < n_eigen_faces; n++)
+	{
+		string input = eigen_faces_directory + "/eigen_face" + to_string(n) + ".pgm";
+
+		if (file_exists(input))
+		{
+			CImg<unsigned char> eigen_face(input.c_str());
+			VectorXd v(eigen_face.width()*eigen_face.height());
+			cimg_forXY(eigen_face, x, y)
+			{
+				v((y*eigen_face.width()) + x) = eigen_face(x, y);
+			}
+			Eigen_faces.push_back(v);
+		}
+		else
+		{
+			cout << "Unable to open " + input;
+			return;
+		}
+	}
 }
 
-void image_to_reduce_space() 
+MatrixXd image_weight(string images, vector<VectorXd> Eigen_faces, int n_eigen_faces)
 {
-	//TODO
+	string directory;
+	int N = 0;
+	int image_width, image_height;
+	read_txt_file(images, directory, N, image_width, image_height);
+	
+	MatrixXd I = images_to_MatrixXd(image_width, image_height, N, directory);
+	MatrixXd weight(n_eigen_faces, I.cols());
+
+	double w;
+	VectorXd image_norm(I.rows());
+	for (int i = 0; i < I.cols(); i++)
+	{
+		image_norm = (I.col(i) - Eigen_faces[0]);
+		for (int p = 0; p < image_norm.rows(); p++)
+		{
+			if (image_norm(p) < 0)
+				image_norm(p) = 0;
+		}
+
+		for (int m = 1; m < n_eigen_faces + 1; m++)
+		{
+			w = (Eigen_faces[m].transpose() * image_norm);
+			weight(m - 1, i) = w;
+		}
+	}
+
+	return weight;
 }
 
-void find_similar_image()
+
+vector<int> k_min(vector<double> distances, int k)
 {
 	//TODO
+	vector<int> index;
+	return index;
+}
+
+void find_similar_image(int k, string similar_directory, string data_base, vector<VectorXd> Eigen_faces, int n_eigen_faces)
+{
+	MatrixXd database_weight = image_weight(data_base, Eigen_faces, n_eigen_faces);
+	MatrixXd compared_image_weight = image_weight(similar_directory, Eigen_faces, n_eigen_faces);
+	VectorXd dif(compared_image_weight.rows());
+	vector<double> distances;
+
+	for (int d = 0; d < database_weight.cols(); d++)
+	{
+		double distance = 0.0;
+		dif = compared_image_weight.col(0) - database_weight.col(d);
+		for (int j = 0; j < dif.rows(); j++)
+		{
+			distance += dif(j)*dif(j);
+		}
+		distance = sqrt(distance);
+		distances.push_back(distance);
+	}
+
+	vector<int> index = k_min(distances, k);
+	
+	ofstream myfile;
+	myfile.open(similar_directory + "similar_image_list.txt");
+	myfile << "Les "+to_string(k)+" images les plus similaire, de la plus similaise a la moins similaire, sont: \n";
+	for (int i = 0; i < index.size(); i++)
+	{
+		myfile << to_string(index[i]) + ".pgm \n";
+	}
 }
 
 int main(int argc, const char * argv[]) {
 
 	//vector of eigen faces, beginning by the mean.
-	vector<CImg<unsigned char>> Eigen_faces;
+	vector<VectorXd> Eigen_faces;
+	vector<double> weigth;
 
-	string b(argv[1]);
-	string e(argv[2]);
-	string s(argv[3]);
-	int build = stoi(b);
-	int get_ef = stoi(e);
-	int similar = stoi(s);
+	int build = atoi(argv[1]);
+	int get_ef = atoi(argv[2]);
+	int similar = atoi(argv[3]);
 	string data_base(argv[4]);
-	string eigen_faces_directory(argv[5]);
+	int n_eigen_faces = atoi(argv[5]);
+	string eigen_faces_directory(argv[6]);
+	string similar_directory(argv[7]);
+	int k = atoi(argv[8]);;
 
 	if (build)
-			build_reduced_space(data_base, eigen_faces_directory, Eigen_faces);
-	if (get_ef)
-		get_eigen_faces();
-	if (similar)
+		build_eigen_faces(data_base, eigen_faces_directory, Eigen_faces);
+	else if (get_ef)
+		get_eigen_faces(Eigen_faces, eigen_faces_directory, n_eigen_faces);
+	else
 	{
-		string similar_directory(argv[6]);
-		find_similar_image();
+		cout << "Either build or get eigen_faces";
+		return 0;
 	}
+	if (similar)
+		find_similar_image(k, similar_directory, data_base, Eigen_faces, n_eigen_faces);
 	
 	return 0;
 }

@@ -1,4 +1,4 @@
-./lfw_pgm/
+./images/lfw_pgm/
 100
 250
 250
