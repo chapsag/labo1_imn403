@@ -117,7 +117,7 @@ void build_eigen_faces(string data_base, string eigen_faces_directory, vector<Ve
 	CImg<unsigned char> mean = VectorXd_to_CImg(m, image_width, image_height, 0.0, 255.0);
 	mean.save((eigen_faces_directory + "/mean.pgm").c_str());
 
-	// Q : la matrice de covariance.
+	// Q : la matrice de covariance. Merci les mathématiques :)))
 	MatrixXd A = F - (m * ONES.transpose());
 	MatrixXd Q = A.transpose() * A;
 
