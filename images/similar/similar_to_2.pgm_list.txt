@@ -1,11 +1,11 @@
 Les 10 images les plus similaire, de la plus similaise a la moins similaire, sont: 
-121.pgm 
+138.pgm 
+136.pgm 
+140.pgm 
+134.pgm 
+142.pgm 
+132.pgm 
 130.pgm 
-0.pgm 
-199.pgm 
-141.pgm 
-109.pgm 
-124.pgm 
-155.pgm 
-36.pgm 
-151.pgm 
+174.pgm 
+172.pgm 
+176.pgm 
